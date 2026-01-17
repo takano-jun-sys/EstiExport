@@ -1,0 +1,28 @@
+{
+  "name": "esti-export",
+  "version": "1.0.0",
+  "description": "AppSheet連携見積書作成システム",
+  "scripts": {
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "deploy": "clasp push && clasp deploy",
+    "open": "clasp open",
+    "logs": "clasp logs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/takano-jun-sys/EstiExport.git"
+  },
+  "keywords": [
+    "google-apps-script",
+    "appsheet",
+    "quote",
+    "pdf",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}

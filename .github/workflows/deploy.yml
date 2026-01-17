@@ -1,0 +1,39 @@
+name: Deploy to Google Apps Script
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # 手動実行も可能
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Create .clasprc.json
+        run: |
+          echo '${{ secrets.CLASPRC_JSON }}' > ~/.clasprc.json
+
+      - name: Create .clasp.json
+        run: |
+          echo '${{ secrets.CLASP_JSON }}' > .clasp.json
+
+      - name: Push to Google Apps Script
+        run: clasp push --force
+
+      - name: Deploy notification
+        if: success()
+        run: echo "Successfully deployed to Google Apps Script!"

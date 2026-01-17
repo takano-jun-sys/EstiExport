@@ -1,0 +1,15 @@
+# clasp
+.clasp.json
+.clasprc.json
+
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
