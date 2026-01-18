@@ -56,12 +56,19 @@ function getJobData(jobId) {
 
   const data = jobsSheet.getDataRange().getValues();
 
+  Logger.log('=== getJobData デバッグ ===');
+  Logger.log('検索するJob ID: "' + jobId + '" (型: ' + typeof jobId + ')');
+  Logger.log('使用する列番号: ' + CONFIG.JOBS_COLUMNS.JOB_ID);
+
   // ヘッダー行を除いて検索
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     const currentJobId = row[CONFIG.JOBS_COLUMNS.JOB_ID - 1];
 
-    if (currentJobId === jobId) {
+    Logger.log('行' + (i + 1) + ': "' + currentJobId + '" (型: ' + typeof currentJobId + ')');
+
+    // 型を揃えて比較（両方とも文字列に変換）
+    if (String(currentJobId) === String(jobId)) {
       return {
         rowIndex: i + 1,  // 実際の行番号（1始まり）
         projectId: row[CONFIG.JOBS_COLUMNS.PROJECT_ID - 1],
