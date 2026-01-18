@@ -1,0 +1,296 @@
+/**
+ * 見積書Export機能
+ */
+
+/**
+ * 見積書を生成（ダイアログから呼び出される）
+ * @param {string} jobId - Job ID
+ * @param {Object} formData - フォームデータ
+ * @return {Object} - 結果（success, spreadsheetUrl, pdfUrl）
+ */
+function generateQuote(jobId, formData) {
+  try {
+    Logger.log('見積書生成開始: ' + jobId);
+
+    // 1. Jobデータを更新
+    const updateResult = updateJobData(jobId, formData);
+    if (!updateResult.success) {
+      throw new Error('Jobデータの更新に失敗: ' + updateResult.error);
+    }
+
+    // 2. 更新後のJobデータとDetailsを取得
+    const jobData = getJobData(jobId);
+    const details = getDetails(jobId);
+
+    if (details.length === 0) {
+      throw new Error('明細が見つかりません');
+    }
+
+    Logger.log('明細数: ' + details.length);
+
+    // 3. テンプレートを選択（13未満 or 14以上）
+    const templateName = details.length <= 13
+      ? CONFIG.TEMPLATE_SHEETS.UNDER_13
+      : CONFIG.TEMPLATE_SHEETS.OVER_14;
+
+    Logger.log('使用テンプレート: ' + templateName);
+
+    // 4. スプレッドシートを作成または取得
+    const spreadsheet = getOrCreateQuoteSpreadsheet(jobData);
+
+    // 5. 新しいシートを追加（発行日時が名前）
+    const now = new Date();
+    const sheetName = Utilities.formatDate(now, CONFIG.TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
+    const newSheet = addQuoteSheet(spreadsheet, templateName, sheetName);
+
+    // 6. データを埋め込み
+    fillQuoteData(newSheet, jobData, details, templateName);
+
+    // 7. PDFを生成
+    const pdfFile = exportSheetToPDF(spreadsheet, newSheet, jobData);
+
+    // 8. JobsテーブルにURLを保存
+    saveQuoteUrls(jobData.rowIndex, spreadsheet.getUrl(), pdfFile.getUrl(), now);
+
+    Logger.log('見積書生成完了');
+
+    return {
+      success: true,
+      spreadsheetUrl: spreadsheet.getUrl(),
+      pdfUrl: pdfFile.getUrl(),
+      message: '見積書を生成しました'
+    };
+
+  } catch (error) {
+    Logger.log('generateQuoteエラー: ' + error.message);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * 見積書スプレッドシートを取得または作成
+ * @param {Object} jobData - Jobデータ
+ * @return {Spreadsheet} - スプレッドシート
+ */
+function getOrCreateQuoteSpreadsheet(jobData) {
+  const fileName = jobData.projectId + '-' + jobData.jobId;
+
+  // 既存のスプレッドシートURLがあれば開く
+  if (jobData.見積書スプレッドシートURL) {
+    try {
+      return SpreadsheetApp.openByUrl(jobData.見積書スプレッドシートURL);
+    } catch (error) {
+      Logger.log('既存スプレッドシートが見つからないため新規作成: ' + error.message);
+    }
+  }
+
+  // 新規作成
+  const newSpreadsheet = SpreadsheetApp.create(fileName);
+  Logger.log('新規スプレッドシート作成: ' + fileName);
+
+  // デフォルトのシートを削除
+  const defaultSheet = newSpreadsheet.getSheets()[0];
+  if (defaultSheet.getName() === 'シート1' || defaultSheet.getName() === 'Sheet1') {
+    // 後で削除（少なくとも1つのシートが必要なため）
+  }
+
+  return newSpreadsheet;
+}
+
+/**
+ * テンプレートから新しいシートを追加
+ * @param {Spreadsheet} targetSpreadsheet - 追加先スプレッドシート
+ * @param {string} templateName - テンプレート名
+ * @param {string} newSheetName - 新しいシート名
+ * @return {Sheet} - 追加されたシート
+ */
+function addQuoteSheet(targetSpreadsheet, templateName, newSheetName) {
+  const templateSS = getTemplateSpreadsheet();
+  const templateSheet = templateSS.getSheetByName(templateName);
+
+  if (!templateSheet) {
+    throw new Error('テンプレートシートが見つかりません: ' + templateName);
+  }
+
+  // テンプレートをコピー
+  const copiedSheet = templateSheet.copyTo(targetSpreadsheet);
+  copiedSheet.setName(newSheetName);
+
+  Logger.log('シート追加: ' + newSheetName);
+
+  // デフォルトシートを削除（最初のシート追加後）
+  const sheets = targetSpreadsheet.getSheets();
+  sheets.forEach(sheet => {
+    if (sheet.getName() === 'シート1' || sheet.getName() === 'Sheet1') {
+      targetSpreadsheet.deleteSheet(sheet);
+    }
+  });
+
+  return copiedSheet;
+}
+
+/**
+ * 見積データをシートに埋め込み
+ * @param {Sheet} sheet - 対象シート
+ * @param {Object} jobData - Jobデータ
+ * @param {Array} details - Details配列
+ * @param {string} templateName - テンプレート名
+ */
+function fillQuoteData(sheet, jobData, details, templateName) {
+  const config = templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13
+    ? CONFIG.TEMPLATE_CELLS_13
+    : CONFIG.TEMPLATE_CELLS_14;
+
+  // 固定情報を設定
+  sheet.getRange(config.クライアント名).setValue(jobData.クライアント名);
+  sheet.getRange(config.品名).setValue(jobData.品名);
+  sheet.getRange(config.仕様1).setValue(jobData.仕様1);
+  sheet.getRange(config.仕様2).setValue(jobData.仕様2);
+  sheet.getRange(config.仕様3).setValue(jobData.仕様3);
+  sheet.getRange(config.仕様4).setValue(jobData.仕様4);
+  sheet.getRange(config.担当).setValue(jobData.担当);
+  sheet.getRange(config.PROJECT_JOB_ID).setValue(jobData.projectId + '-' + jobData.jobId);
+
+  // 明細を設定
+  if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13) {
+    // 13未満テンプレート
+    fillDetails13(sheet, details, config);
+  } else {
+    // 14以上テンプレート
+    fillDetails14(sheet, details, config);
+  }
+}
+
+/**
+ * 明細を設定（13未満テンプレート）
+ */
+function fillDetails13(sheet, details, config) {
+  const startRow = config.明細開始行;
+
+  details.forEach((detail, index) => {
+    if (index >= 13) return; // 13行まで
+
+    const row = startRow + index;
+    sheet.getRange(row, 1).setValue(detail.行番号); // A列: Job.ID
+    sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
+    sheet.getRange(config.列.メモ + row).setValue(detail.メモ);
+    sheet.getRange(config.列.単価 + row).setValue(detail.単価);
+    sheet.getRange(config.列.数量 + row).setValue(detail.数量);
+    sheet.getRange(config.列.単位 + row).setValue(detail.単位);
+
+    // 金額は結合セル（G:H）の先頭に設定
+    const amountCell = config.列.金額.split(':')[0] + row; // G列
+    sheet.getRange(amountCell).setValue(detail.金額);
+  });
+}
+
+/**
+ * 明細を設定（14以上テンプレート）
+ */
+function fillDetails14(sheet, details, config) {
+  let detailIndex = 0;
+
+  // ページ1（18-37行、20件）
+  const page1Start = config.ページ1.明細開始行;
+  const page1End = config.ページ1.明細終了行;
+  const page1Count = page1End - page1Start + 1;
+
+  for (let i = 0; i < page1Count && detailIndex < details.length; i++) {
+    const detail = details[detailIndex];
+    const row = page1Start + i;
+
+    sheet.getRange(row, 1).setValue(detail.行番号);
+    sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
+    sheet.getRange(config.列.メモ + row).setValue(detail.メモ);
+    sheet.getRange(config.列.単価 + row).setValue(detail.単価);
+    sheet.getRange(config.列.数量 + row).setValue(detail.数量);
+    sheet.getRange(config.列.単位 + row).setValue(detail.単位);
+
+    const amountCell = config.列.金額.split(':')[0] + row;
+    sheet.getRange(amountCell).setValue(detail.金額);
+
+    detailIndex++;
+  }
+
+  // ページ2（39-62行、24件）
+  const page2Start = config.ページ2.明細開始行;
+  const page2End = config.ページ2.明細終了行;
+  const page2Count = page2End - page2Start + 1;
+
+  for (let i = 0; i < page2Count && detailIndex < details.length; i++) {
+    const detail = details[detailIndex];
+    const row = page2Start + i;
+
+    sheet.getRange(row, 1).setValue(detail.行番号);
+    sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
+    sheet.getRange(config.列.メモ + row).setValue(detail.メモ);
+    sheet.getRange(config.列.単価 + row).setValue(detail.単価);
+    sheet.getRange(config.列.数量 + row).setValue(detail.数量);
+    sheet.getRange(config.列.単位 + row).setValue(detail.単位);
+
+    const amountCell = config.列.金額.split(':')[0] + row;
+    sheet.getRange(amountCell).setValue(detail.金額);
+
+    detailIndex++;
+  }
+}
+
+/**
+ * シートをPDFとしてエクスポート
+ */
+function exportSheetToPDF(spreadsheet, sheet, jobData) {
+  const pdfFolder = getPDFFolder();
+  const pdfFileName = `${jobData.projectId}-${jobData.jobId}_${Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyyMMdd_HHmmss')}.pdf`;
+
+  const pdfBlob = generatePDFBlob(spreadsheet, sheet);
+  const pdfFile = pdfFolder.createFile(pdfBlob.setName(pdfFileName));
+
+  Logger.log('PDF生成完了: ' + pdfFileName);
+
+  return pdfFile;
+}
+
+/**
+ * PDFBlobを生成
+ */
+function generatePDFBlob(spreadsheet, sheet) {
+  const sheetId = sheet.getSheetId();
+  const spreadsheetId = spreadsheet.getId();
+
+  const url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId + '/export' +
+    '?exportFormat=pdf' +
+    '&format=pdf' +
+    '&size=A4' +
+    '&portrait=true' +
+    '&fitw=true' +
+    '&sheetnames=false' +
+    '&printtitle=false' +
+    '&pagenumbers=false' +
+    '&gridlines=false' +
+    '&fzr=false' +
+    '&gid=' + sheetId;
+
+  const token = ScriptApp.getOAuthToken();
+  const response = UrlFetchApp.fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+
+  return response.getBlob();
+}
+
+/**
+ * 見積URLをJobsテーブルに保存
+ */
+function saveQuoteUrls(rowIndex, spreadsheetUrl, pdfUrl, timestamp) {
+  const ss = getAppSheetSpreadsheet();
+  const jobsSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.JOBS);
+
+  jobsSheet.getRange(rowIndex, CONFIG.JOBS_COLUMNS.見積書スプレッドシートURL).setValue(spreadsheetUrl);
+  jobsSheet.getRange(rowIndex, CONFIG.JOBS_COLUMNS.見積書PDF_URL).setValue(pdfUrl);
+  jobsSheet.getRange(rowIndex, CONFIG.JOBS_COLUMNS.最終発行日時).setValue(timestamp);
+
+  Logger.log('URLを保存しました');
+}
