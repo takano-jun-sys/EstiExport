@@ -54,14 +54,18 @@ function generateQuote(jobId, formData) {
     // 7. PDFを生成
     const pdfFile = exportSheetToPDF(spreadsheet, newSheet, jobData);
 
-    // 8. JobsテーブルにURLを保存
-    saveQuoteUrls(jobData.rowIndex, spreadsheet.getUrl(), pdfFile.getUrl(), now);
+    // 8. 生成したシートを直接開くURLを作成
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheet.getId()}/edit#gid=${newSheet.getSheetId()}`;
+    Logger.log('シートURL: ' + sheetUrl);
+
+    // 9. JobsテーブルにURLを保存
+    saveQuoteUrls(jobData.rowIndex, sheetUrl, pdfFile.getUrl(), now);
 
     Logger.log('見積書生成完了');
 
     return {
       success: true,
-      spreadsheetUrl: spreadsheet.getUrl(),
+      spreadsheetUrl: sheetUrl,
       pdfUrl: pdfFile.getUrl(),
       message: '見積書を生成しました'
     };
