@@ -108,7 +108,11 @@ function getDetails(jobId) {
     const row = data[i];
     const currentJobId = row[CONFIG.DETAILS_COLUMNS.JOB_ID - 1];
 
-    if (currentJobId === jobId) {
+    // 型を揃えて比較
+    if (String(currentJobId) === String(jobId)) {
+      const 数量 = row[CONFIG.DETAILS_COLUMNS.数量 - 1] || 0;
+      const 単価 = row[CONFIG.DETAILS_COLUMNS.単価 - 1] || 0;
+
       details.push({
         明細ID: row[CONFIG.DETAILS_COLUMNS.明細ID - 1],
         jobId: jobId,
@@ -116,11 +120,11 @@ function getDetails(jobId) {
         行番号: row[CONFIG.DETAILS_COLUMNS.行番号 - 1],
         作業項目: row[CONFIG.DETAILS_COLUMNS.作業項目 - 1] || '',
         担当部署: row[CONFIG.DETAILS_COLUMNS.担当部署 - 1] || '',
-        数量: row[CONFIG.DETAILS_COLUMNS.数量 - 1] || 0,
+        数量: 数量,
         単位: row[CONFIG.DETAILS_COLUMNS.単位 - 1] || '',
-        単価: row[CONFIG.DETAILS_COLUMNS.単価 - 1] || 0,
+        単価: 単価,
         メモ: row[CONFIG.DETAILS_COLUMNS.メモ - 1] || '',
-        金額: row[CONFIG.DETAILS_COLUMNS.金額 - 1] || 0
+        金額: 数量 * 単価  // 金額を計算
       });
     }
   }
