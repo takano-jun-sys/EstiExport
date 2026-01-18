@@ -173,6 +173,12 @@ function fillQuoteData(sheet, jobData, details, templateName, generatedDate) {
   Logger.log('テンプレート: "' + templateName + '"');
   Logger.log('明細数: ' + details.length);
 
+  // デバッグ：最初の明細の内容を確認
+  if (details.length > 0) {
+    Logger.log('=== 最初の明細の内容 ===');
+    Logger.log(JSON.stringify(details[0], null, 2));
+  }
+
   // テンプレート名で設定を選択
   let config;
   if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13 || templateName === '13未満') {
