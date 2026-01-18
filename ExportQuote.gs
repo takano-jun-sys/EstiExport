@@ -91,14 +91,23 @@ function generateQuote(jobId, formData) {
  */
 function getOrCreateQuoteSpreadsheet(jobData) {
   const fileName = jobData.projectId + '-' + jobData.jobId;
+  const quoteFolder = getQuoteFolder();
 
   // 既存のスプレッドシートURLがあれば開く
   if (jobData.見積書スプレッドシートURL) {
     try {
       return SpreadsheetApp.openByUrl(jobData.見積書スプレッドシートURL);
     } catch (error) {
-      Logger.log('既存スプレッドシートが見つからないため新規作成: ' + error.message);
+      Logger.log('既存スプレッドシートが見つからないため再検索: ' + error.message);
     }
+  }
+
+  // フォルダ内に同名のスプレッドシートが既にあるかチェック
+  const existingFiles = quoteFolder.getFilesByName(fileName);
+  if (existingFiles.hasNext()) {
+    const existingFile = existingFiles.next();
+    Logger.log('既存のスプレッドシートを再利用: ' + fileName);
+    return SpreadsheetApp.openById(existingFile.getId());
   }
 
   // 新規作成
@@ -106,7 +115,6 @@ function getOrCreateQuoteSpreadsheet(jobData) {
   Logger.log('新規スプレッドシート作成: ' + fileName);
 
   // 保存先フォルダに移動
-  const quoteFolder = getQuoteFolder();
   const file = DriveApp.getFileById(newSpreadsheet.getId());
   file.moveTo(quoteFolder);
   Logger.log('スプレッドシートを保存先フォルダに移動: ' + quoteFolder.getName());
@@ -398,6 +406,14 @@ function exportSheetToPDF(spreadsheet, sheet, jobData, generatedDate) {
   const folderName = `${jobData.projectId}-${jobData.jobId}`;
   const pdfFolder = getPDFFolder(folderName);
   const pdfFileName = `${jobData.projectId}-${jobData.jobId}_${Utilities.formatDate(generatedDate, CONFIG.TIMEZONE, 'yyyyMMdd_HHmmss')}.pdf`;
+
+  // 既存の同名PDFファイルがあれば削除
+  const existingPDFs = pdfFolder.getFilesByName(pdfFileName);
+  if (existingPDFs.hasNext()) {
+    const existingPDF = existingPDFs.next();
+    Logger.log('既存のPDFファイルを削除: ' + pdfFileName);
+    existingPDF.setTrashed(true);
+  }
 
   const pdfBlob = generatePDFBlob(spreadsheet, sheet, generatedDate);
   const pdfFile = pdfFolder.createFile(pdfBlob.setName(pdfFileName));
