@@ -28,10 +28,15 @@ function generateQuote(jobId, formData) {
 
     Logger.log('明細数: ' + details.length);
 
-    // 3. テンプレートを選択（13未満 or 14以上）
-    const templateName = details.length <= 13
-      ? CONFIG.TEMPLATE_SHEETS.UNDER_13
-      : CONFIG.TEMPLATE_SHEETS.OVER_14;
+    // 3. テンプレートを選択（13未満 / 14-20 / 20以上）
+    let templateName;
+    if (details.length <= 13) {
+      templateName = CONFIG.TEMPLATE_SHEETS.UNDER_13;
+    } else if (details.length <= 20) {
+      templateName = CONFIG.TEMPLATE_SHEETS.BETWEEN_14_20;
+    } else {
+      templateName = CONFIG.TEMPLATE_SHEETS.OVER_20;
+    }
 
     Logger.log('使用テンプレート: ' + templateName);
 
@@ -159,17 +164,18 @@ function fillQuoteData(sheet, jobData, details, templateName, generatedDate) {
   Logger.log('=== fillQuoteData 開始 ===');
   Logger.log('テンプレート: "' + templateName + '"');
   Logger.log('明細数: ' + details.length);
-  Logger.log('CONFIG.TEMPLATE_SHEETS.UNDER_13 = "' + CONFIG.TEMPLATE_SHEETS.UNDER_13 + '"');
-  Logger.log('CONFIG.TEMPLATE_SHEETS.OVER_14 = "' + CONFIG.TEMPLATE_SHEETS.OVER_14 + '"');
 
   // テンプレート名で設定を選択
   let config;
   if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13 || templateName === '13未満') {
     config = CONFIG.TEMPLATE_CELLS_13;
     Logger.log('13未満テンプレートの設定を使用');
-  } else if (templateName === CONFIG.TEMPLATE_SHEETS.OVER_14 || templateName === '14以上') {
-    config = CONFIG.TEMPLATE_CELLS_14;
-    Logger.log('14以上テンプレートの設定を使用');
+  } else if (templateName === CONFIG.TEMPLATE_SHEETS.BETWEEN_14_20 || templateName === '14-20') {
+    config = CONFIG.TEMPLATE_CELLS_14_20;
+    Logger.log('14-20テンプレートの設定を使用');
+  } else if (templateName === CONFIG.TEMPLATE_SHEETS.OVER_20 || templateName === '20以上') {
+    config = CONFIG.TEMPLATE_CELLS_20_OVER;
+    Logger.log('20以上テンプレートの設定を使用');
   } else {
     throw new Error('不明なテンプレート名: ' + templateName);
   }
@@ -210,9 +216,12 @@ function fillQuoteData(sheet, jobData, details, templateName, generatedDate) {
   if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13 || templateName === '13未満') {
     // 13未満テンプレート
     fillDetails13(sheet, details, config);
+  } else if (templateName === CONFIG.TEMPLATE_SHEETS.BETWEEN_14_20 || templateName === '14-20') {
+    // 14-20テンプレート
+    fillDetails14_20(sheet, details, config);
   } else {
-    // 14以上テンプレート
-    fillDetails14(sheet, details, config);
+    // 20以上テンプレート
+    fillDetails20Over(sheet, details, config);
   }
   Logger.log('=== fillQuoteData 完了 ===');
 }
@@ -261,10 +270,53 @@ function fillDetails13(sheet, details, config) {
 }
 
 /**
- * 明細を設定（14以上テンプレート）
+ * 明細を設定（14-20テンプレート）
  */
-function fillDetails14(sheet, details, config) {
-  Logger.log('fillDetails14: 開始, 明細数=' + details.length);
+function fillDetails14_20(sheet, details, config) {
+  const startRow = config.明細開始行;
+  Logger.log('fillDetails14_20: 開始行=' + startRow + ', 明細数=' + details.length);
+
+  let rowOffset = 0;  // 通常明細の行オフセット
+
+  details.forEach((detail, index) => {
+    Logger.log(`明細${index + 1}: 作業項目=${detail.作業項目}, 金額=${detail.金額}`);
+
+    // 作業項目が「端数調整」の場合は特別処理
+    if (detail.作業項目 === '端数調整') {
+      Logger.log('  → 端数調整を検出: G40:H40に金額を設定');
+      sheet.getRange(config.端数調整).setValue(detail.金額);
+      return;  // 通常の明細行としては表示しない
+    }
+
+    // 通常の明細処理
+    if (rowOffset >= 20) return; // 20行まで
+
+    const row = startRow + rowOffset;
+    Logger.log(`  → 通常明細: 行=${row}`);
+
+    sheet.getRange(row, 1).setValue(detail.行番号); // A列: 行番号
+    sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
+    sheet.getRange(config.列.メモ + row).setValue(detail.メモ);
+    sheet.getRange(config.列.単価 + row).setValue(detail.単価);
+    sheet.getRange(config.列.数量 + row).setValue(detail.数量);
+    sheet.getRange(config.列.単位 + row).setValue(detail.単位);
+
+    // 金額は結合セル（G:H）の先頭に設定
+    const amountCell = config.列.金額.split(':')[0] + row; // G列
+    sheet.getRange(amountCell).setValue(detail.金額);
+    Logger.log(`  → セル${amountCell}に金額${detail.金額}を設定`);
+
+    rowOffset++;  // 通常明細の場合のみ行を進める
+  });
+
+  Logger.log('fillDetails14_20: 完了');
+}
+
+/**
+ * 明細を設定（20以上テンプレート）
+ */
+function fillDetails20Over(sheet, details, config) {
+  Logger.log('fillDetails20Over: 開始, 明細数=' + details.length);
 
   // 端数調整を除外した通常明細のみを配列化
   const normalDetails = [];
@@ -282,7 +334,7 @@ function fillDetails14(sheet, details, config) {
   // 端数調整があれば専用セルに設定
   if (hasukasuchousei) {
     sheet.getRange(config.端数調整).setValue(hasukasuchousei.金額);
-    Logger.log('  → G33:H33に端数調整を設定');
+    Logger.log('  → G65:H65に端数調整を設定');
   }
 
   let detailIndex = 0;
@@ -331,7 +383,7 @@ function fillDetails14(sheet, details, config) {
     detailIndex++;
   }
 
-  Logger.log('fillDetails14: 完了');
+  Logger.log('fillDetails20Over: 完了');
 }
 
 /**
