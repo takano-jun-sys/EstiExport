@@ -123,7 +123,7 @@ function getDetails(jobId) {
         数量: 数量,
         単位: row[CONFIG.DETAILS_COLUMNS.単位 - 1] || '',
         単価: 単価,
-        メモ: row[CONFIG.DETAILS_COLUMNS.メモ - 1] || '',
+        作業詳細: row[CONFIG.DETAILS_COLUMNS.作業詳細 - 1] || '',
         金額: 数量 * 単価  // 金額を計算
       });
     }

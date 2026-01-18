@@ -261,7 +261,7 @@ function fillDetails13(sheet, details, config) {
 
     sheet.getRange(row, 1).setValue(detail.行番号); // A列: 行番号
     sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
-    sheet.getRange(config.列.メモ + row).setValue(detail.メモ);
+    sheet.getRange(config.列.作業詳細 + row).setValue(detail.作業詳細);
     sheet.getRange(config.列.単価 + row).setValue(detail.単価);
     sheet.getRange(config.列.数量 + row).setValue(detail.数量);
     sheet.getRange(config.列.単位 + row).setValue(detail.単位);
@@ -304,7 +304,7 @@ function fillDetails14_20(sheet, details, config) {
 
     sheet.getRange(row, 1).setValue(detail.行番号); // A列: 行番号
     sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
-    sheet.getRange(config.列.メモ + row).setValue(detail.メモ);
+    sheet.getRange(config.列.作業詳細 + row).setValue(detail.作業詳細);
     sheet.getRange(config.列.単価 + row).setValue(detail.単価);
     sheet.getRange(config.列.数量 + row).setValue(detail.数量);
     sheet.getRange(config.列.単位 + row).setValue(detail.単位);
@@ -358,7 +358,7 @@ function fillDetails20Over(sheet, details, config) {
 
     sheet.getRange(row, 1).setValue(detail.行番号);
     sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
-    sheet.getRange(config.列.メモ + row).setValue(detail.メモ);
+    sheet.getRange(config.列.作業詳細 + row).setValue(detail.作業詳細);
     sheet.getRange(config.列.単価 + row).setValue(detail.単価);
     sheet.getRange(config.列.数量 + row).setValue(detail.数量);
     sheet.getRange(config.列.単位 + row).setValue(detail.単位);
@@ -380,7 +380,7 @@ function fillDetails20Over(sheet, details, config) {
 
     sheet.getRange(row, 1).setValue(detail.行番号);
     sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
-    sheet.getRange(config.列.メモ + row).setValue(detail.メモ);
+    sheet.getRange(config.列.作業詳細 + row).setValue(detail.作業詳細);
     sheet.getRange(config.列.単価 + row).setValue(detail.単価);
     sheet.getRange(config.列.数量 + row).setValue(detail.数量);
     sheet.getRange(config.列.単位 + row).setValue(detail.単位);
