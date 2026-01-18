@@ -146,21 +146,38 @@ function addQuoteSheet(targetSpreadsheet, templateName, newSheetName) {
  * @param {string} templateName - テンプレート名
  */
 function fillQuoteData(sheet, jobData, details, templateName) {
+  Logger.log('=== fillQuoteData 開始 ===');
+  Logger.log('テンプレート: ' + templateName);
+  Logger.log('明細数: ' + details.length);
+
   const config = templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13
     ? CONFIG.TEMPLATE_CELLS_13
     : CONFIG.TEMPLATE_CELLS_14;
 
+  Logger.log('使用する設定: ' + JSON.stringify(config, null, 2));
+
   // 固定情報を設定
+  Logger.log('固定情報を設定開始');
   sheet.getRange(config.クライアント名).setValue(jobData.クライアント名);
+  Logger.log('クライアント名設定完了: ' + jobData.クライアント名);
+
   sheet.getRange(config.品名).setValue(jobData.品名);
+  Logger.log('品名設定完了: ' + jobData.品名);
+
   sheet.getRange(config.仕様1).setValue(jobData.仕様1);
   sheet.getRange(config.仕様2).setValue(jobData.仕様2);
   sheet.getRange(config.仕様3).setValue(jobData.仕様3);
   sheet.getRange(config.仕様4).setValue(jobData.仕様4);
+  Logger.log('仕様設定完了');
+
   sheet.getRange(config.担当).setValue(jobData.担当);
+  Logger.log('担当設定完了: ' + jobData.担当);
+
   sheet.getRange(config.PROJECT_JOB_ID).setValue(jobData.projectId + '-' + jobData.jobId);
+  Logger.log('PROJECT_JOB_ID設定完了: ' + jobData.projectId + '-' + jobData.jobId);
 
   // 明細を設定
+  Logger.log('明細設定開始');
   if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13) {
     // 13未満テンプレート
     fillDetails13(sheet, details, config);
@@ -168,6 +185,7 @@ function fillQuoteData(sheet, jobData, details, templateName) {
     // 14以上テンプレート
     fillDetails14(sheet, details, config);
   }
+  Logger.log('=== fillQuoteData 完了 ===');
 }
 
 /**
@@ -175,12 +193,15 @@ function fillQuoteData(sheet, jobData, details, templateName) {
  */
 function fillDetails13(sheet, details, config) {
   const startRow = config.明細開始行;
+  Logger.log('fillDetails13: 開始行=' + startRow + ', 明細数=' + details.length);
 
   details.forEach((detail, index) => {
     if (index >= 13) return; // 13行まで
 
     const row = startRow + index;
-    sheet.getRange(row, 1).setValue(detail.行番号); // A列: Job.ID
+    Logger.log(`明細${index + 1}: 行=${row}, 作業項目=${detail.作業項目}, 金額=${detail.金額}`);
+
+    sheet.getRange(row, 1).setValue(detail.行番号); // A列: 行番号
     sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
     sheet.getRange(config.列.メモ + row).setValue(detail.メモ);
     sheet.getRange(config.列.単価 + row).setValue(detail.単価);
@@ -190,7 +211,10 @@ function fillDetails13(sheet, details, config) {
     // 金額は結合セル（G:H）の先頭に設定
     const amountCell = config.列.金額.split(':')[0] + row; // G列
     sheet.getRange(amountCell).setValue(detail.金額);
+    Logger.log(`  → セル${amountCell}に金額${detail.金額}を設定`);
   });
+
+  Logger.log('fillDetails13: 完了');
 }
 
 /**
