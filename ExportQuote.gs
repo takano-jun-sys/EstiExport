@@ -44,15 +44,15 @@ function generateQuote(jobId, formData) {
     const newSheet = addQuoteSheet(spreadsheet, templateName, sheetName);
 
     // 6. データを埋め込み
-    fillQuoteData(newSheet, jobData, details, templateName);
+    fillQuoteData(newSheet, jobData, details, templateName, now);
 
     // 6.5. スプレッドシートへの書き込みを確実に反映させる
     Logger.log('スプレッドシートへの書き込みを反映中...');
     SpreadsheetApp.flush();
     Logger.log('スプレッドシートへの書き込み完了');
 
-    // 7. PDFを生成
-    const pdfFile = exportSheetToPDF(spreadsheet, newSheet, jobData);
+    // 7. PDFを生成（ページ番号付き）
+    const pdfFile = exportSheetToPDF(spreadsheet, newSheet, jobData, now);
 
     // 8. 生成したシートを直接開くURLを作成
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheet.getId()}/edit#gid=${newSheet.getSheetId()}`;
@@ -153,8 +153,9 @@ function addQuoteSheet(targetSpreadsheet, templateName, newSheetName) {
  * @param {Object} jobData - Jobデータ
  * @param {Array} details - Details配列
  * @param {string} templateName - テンプレート名
+ * @param {Date} generatedDate - 生成日時
  */
-function fillQuoteData(sheet, jobData, details, templateName) {
+function fillQuoteData(sheet, jobData, details, templateName, generatedDate) {
   Logger.log('=== fillQuoteData 開始 ===');
   Logger.log('テンプレート: "' + templateName + '"');
   Logger.log('明細数: ' + details.length);
@@ -198,6 +199,11 @@ function fillQuoteData(sheet, jobData, details, templateName) {
 
   sheet.getRange(config.PROJECT_JOB_ID).setValue(jobData.projectId + '-' + jobData.jobId);
   Logger.log('PROJECT_JOB_ID設定完了: ' + jobData.projectId + '-' + jobData.jobId);
+
+  // 生成日時を設定
+  const formattedDateTime = Utilities.formatDate(generatedDate, CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm');
+  sheet.getRange(config.生成日時).setValue(formattedDateTime);
+  Logger.log('生成日時設定完了: ' + formattedDateTime);
 
   // 明細を設定
   Logger.log('明細設定開始');
@@ -296,14 +302,15 @@ function fillDetails14(sheet, details, config) {
  * @param {Spreadsheet} spreadsheet - スプレッドシート
  * @param {Sheet} sheet - シート
  * @param {Object} jobData - Jobデータ
+ * @param {Date} generatedDate - 生成日時
  * @return {File} - PDFファイル
  */
-function exportSheetToPDF(spreadsheet, sheet, jobData) {
+function exportSheetToPDF(spreadsheet, sheet, jobData, generatedDate) {
   const folderName = `${jobData.projectId}-${jobData.jobId}`;
   const pdfFolder = getPDFFolder(folderName);
-  const pdfFileName = `${jobData.projectId}-${jobData.jobId}_${Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyyMMdd_HHmmss')}.pdf`;
+  const pdfFileName = `${jobData.projectId}-${jobData.jobId}_${Utilities.formatDate(generatedDate, CONFIG.TIMEZONE, 'yyyyMMdd_HHmmss')}.pdf`;
 
-  const pdfBlob = generatePDFBlob(spreadsheet, sheet);
+  const pdfBlob = generatePDFBlob(spreadsheet, sheet, generatedDate);
   const pdfFile = pdfFolder.createFile(pdfBlob.setName(pdfFileName));
 
   Logger.log('PDF生成完了: ' + pdfFileName);
@@ -314,10 +321,17 @@ function exportSheetToPDF(spreadsheet, sheet, jobData) {
 
 /**
  * PDFBlobを生成
+ * @param {Spreadsheet} spreadsheet - スプレッドシート
+ * @param {Sheet} sheet - シート
+ * @param {Date} generatedDate - 生成日時
+ * @return {Blob} - PDFデータ
  */
-function generatePDFBlob(spreadsheet, sheet) {
+function generatePDFBlob(spreadsheet, sheet, generatedDate) {
   const sheetId = sheet.getSheetId();
   const spreadsheetId = spreadsheet.getId();
+
+  // 生成日時をフォーマット
+  const formattedDateTime = Utilities.formatDate(generatedDate, CONFIG.TIMEZONE, 'yyyy/MM/dd HH:mm');
 
   const url = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId + '/export' +
     '?exportFormat=pdf' +
@@ -327,10 +341,14 @@ function generatePDFBlob(spreadsheet, sheet) {
     '&fitw=true' +
     '&sheetnames=false' +
     '&printtitle=false' +
-    '&pagenumbers=false' +
+    '&pagenumbers=true' +  // ページ番号を有効化
     '&gridlines=false' +
     '&fzr=false' +
+    '&horizontal_alignment=CENTER' +
+    '&vertical_alignment=TOP' +
     '&gid=' + sheetId;
+
+  Logger.log('PDF URL: ' + url);
 
   const token = ScriptApp.getOAuthToken();
   const response = UrlFetchApp.fetch(url, {
