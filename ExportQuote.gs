@@ -46,6 +46,11 @@ function generateQuote(jobId, formData) {
     // 6. データを埋め込み
     fillQuoteData(newSheet, jobData, details, templateName);
 
+    // 6.5. スプレッドシートへの書き込みを確実に反映させる
+    Logger.log('スプレッドシートへの書き込みを反映中...');
+    SpreadsheetApp.flush();
+    Logger.log('スプレッドシートへの書き込み完了');
+
     // 7. PDFを生成
     const pdfFile = exportSheetToPDF(spreadsheet, newSheet, jobData);
 
