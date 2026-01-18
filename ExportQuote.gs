@@ -91,6 +91,12 @@ function getOrCreateQuoteSpreadsheet(jobData) {
   const newSpreadsheet = SpreadsheetApp.create(fileName);
   Logger.log('新規スプレッドシート作成: ' + fileName);
 
+  // 保存先フォルダに移動
+  const quoteFolder = getQuoteFolder();
+  const file = DriveApp.getFileById(newSpreadsheet.getId());
+  file.moveTo(quoteFolder);
+  Logger.log('スプレッドシートを保存先フォルダに移動: ' + quoteFolder.getName());
+
   // デフォルトのシートを削除
   const defaultSheet = newSpreadsheet.getSheets()[0];
   if (defaultSheet.getName() === 'シート1' || defaultSheet.getName() === 'Sheet1') {
@@ -240,15 +246,21 @@ function fillDetails14(sheet, details, config) {
 
 /**
  * シートをPDFとしてエクスポート
+ * @param {Spreadsheet} spreadsheet - スプレッドシート
+ * @param {Sheet} sheet - シート
+ * @param {Object} jobData - Jobデータ
+ * @return {File} - PDFファイル
  */
 function exportSheetToPDF(spreadsheet, sheet, jobData) {
-  const pdfFolder = getPDFFolder();
+  const folderName = `${jobData.projectId}-${jobData.jobId}`;
+  const pdfFolder = getPDFFolder(folderName);
   const pdfFileName = `${jobData.projectId}-${jobData.jobId}_${Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyyMMdd_HHmmss')}.pdf`;
 
   const pdfBlob = generatePDFBlob(spreadsheet, sheet);
   const pdfFile = pdfFolder.createFile(pdfBlob.setName(pdfFileName));
 
   Logger.log('PDF生成完了: ' + pdfFileName);
+  Logger.log('PDF保存先: ' + pdfFolder.getName());
 
   return pdfFile;
 }

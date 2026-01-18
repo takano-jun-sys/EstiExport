@@ -140,20 +140,33 @@ const CONFIG = {
     }
   },
 
-  // PDFフォルダ名
-  PDF_FOLDER_NAME: '見積書PDF'
+  // 保存先フォルダID
+  QUOTE_FOLDER_ID: '15O79II-3SKSD1UsG033lakI2ypnlq0Ym'
 };
 
 /**
- * PDFフォルダを取得または作成
+ * 見積書保存先フォルダを取得
  */
-function getPDFFolder() {
-  const folders = DriveApp.getFoldersByName(CONFIG.PDF_FOLDER_NAME);
+function getQuoteFolder() {
+  return DriveApp.getFolderById(CONFIG.QUOTE_FOLDER_ID);
+}
+
+/**
+ * PDFフォルダを取得または作成（スプレッドシート名と同じフォルダ）
+ * @param {string} folderName - フォルダ名（ProjectID-JobID）
+ * @return {Folder} - PDFフォルダ
+ */
+function getPDFFolder(folderName) {
+  const parentFolder = getQuoteFolder();
+
+  // 既存のフォルダを検索
+  const folders = parentFolder.getFoldersByName(folderName);
   if (folders.hasNext()) {
     return folders.next();
-  } else {
-    return DriveApp.createFolder(CONFIG.PDF_FOLDER_NAME);
   }
+
+  // なければ作成
+  return parentFolder.createFolder(folderName);
 }
 
 /**
