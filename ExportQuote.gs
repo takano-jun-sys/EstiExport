@@ -224,11 +224,23 @@ function fillDetails13(sheet, details, config) {
   const startRow = config.明細開始行;
   Logger.log('fillDetails13: 開始行=' + startRow + ', 明細数=' + details.length);
 
-  details.forEach((detail, index) => {
-    if (index >= 13) return; // 13行まで
+  let rowOffset = 0;  // 通常明細の行オフセット
 
-    const row = startRow + index;
-    Logger.log(`明細${index + 1}: 行=${row}, 作業項目=${detail.作業項目}, 金額=${detail.金額}`);
+  details.forEach((detail, index) => {
+    Logger.log(`明細${index + 1}: 作業項目=${detail.作業項目}, 金額=${detail.金額}`);
+
+    // 作業項目が「端数調整」の場合は特別処理
+    if (detail.作業項目 === '端数調整') {
+      Logger.log('  → 端数調整を検出: G33:H33に金額を設定');
+      sheet.getRange(config.端数調整).setValue(detail.金額);
+      return;  // 通常の明細行としては表示しない
+    }
+
+    // 通常の明細処理
+    if (rowOffset >= 13) return; // 13行まで
+
+    const row = startRow + rowOffset;
+    Logger.log(`  → 通常明細: 行=${row}`);
 
     sheet.getRange(row, 1).setValue(detail.行番号); // A列: 行番号
     sheet.getRange(config.列.作業項目 + row).setValue(detail.作業項目);
@@ -241,6 +253,8 @@ function fillDetails13(sheet, details, config) {
     const amountCell = config.列.金額.split(':')[0] + row; // G列
     sheet.getRange(amountCell).setValue(detail.金額);
     Logger.log(`  → セル${amountCell}に金額${detail.金額}を設定`);
+
+    rowOffset++;  // 通常明細の場合のみ行を進める
   });
 
   Logger.log('fillDetails13: 完了');
@@ -250,6 +264,27 @@ function fillDetails13(sheet, details, config) {
  * 明細を設定（14以上テンプレート）
  */
 function fillDetails14(sheet, details, config) {
+  Logger.log('fillDetails14: 開始, 明細数=' + details.length);
+
+  // 端数調整を除外した通常明細のみを配列化
+  const normalDetails = [];
+  let hasukasuchousei = null;
+
+  details.forEach((detail) => {
+    if (detail.作業項目 === '端数調整') {
+      Logger.log('端数調整を検出: 金額=' + detail.金額);
+      hasukasuchousei = detail;
+    } else {
+      normalDetails.push(detail);
+    }
+  });
+
+  // 端数調整があれば専用セルに設定
+  if (hasukasuchousei) {
+    sheet.getRange(config.端数調整).setValue(hasukasuchousei.金額);
+    Logger.log('  → G33:H33に端数調整を設定');
+  }
+
   let detailIndex = 0;
 
   // ページ1（18-37行、20件）
@@ -257,8 +292,8 @@ function fillDetails14(sheet, details, config) {
   const page1End = config.ページ1.明細終了行;
   const page1Count = page1End - page1Start + 1;
 
-  for (let i = 0; i < page1Count && detailIndex < details.length; i++) {
-    const detail = details[detailIndex];
+  for (let i = 0; i < page1Count && detailIndex < normalDetails.length; i++) {
+    const detail = normalDetails[detailIndex];
     const row = page1Start + i;
 
     sheet.getRange(row, 1).setValue(detail.行番号);
@@ -279,8 +314,8 @@ function fillDetails14(sheet, details, config) {
   const page2End = config.ページ2.明細終了行;
   const page2Count = page2End - page2Start + 1;
 
-  for (let i = 0; i < page2Count && detailIndex < details.length; i++) {
-    const detail = details[detailIndex];
+  for (let i = 0; i < page2Count && detailIndex < normalDetails.length; i++) {
+    const detail = normalDetails[detailIndex];
     const row = page2Start + i;
 
     sheet.getRange(row, 1).setValue(detail.行番号);
@@ -295,6 +330,8 @@ function fillDetails14(sheet, details, config) {
 
     detailIndex++;
   }
+
+  Logger.log('fillDetails14: 完了');
 }
 
 /**
