@@ -341,7 +341,7 @@ function generatePDFBlob(spreadsheet, sheet, generatedDate) {
     '&fitw=true' +
     '&sheetnames=false' +
     '&printtitle=false' +
-    '&pagenumbers=true' +  // ページ番号を有効化
+    '&pagenumbers=false' +  // ページ番号を無効化
     '&gridlines=false' +
     '&fzr=false' +
     '&horizontal_alignment=CENTER' +
