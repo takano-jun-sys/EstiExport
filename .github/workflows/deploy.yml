@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - claude/**  # Claude開発ブランチでもテスト可能
   workflow_dispatch:  # 手動実行も可能
 
 jobs:

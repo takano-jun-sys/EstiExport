@@ -1,6 +1,8 @@
 /**
  * EstiExport - AppSheet連携見積書作成システム
  * メインエントリーポイント
+ * @version 1.0.0
+ * @description 自動デプロイ設定完了
  */
 
 /**
