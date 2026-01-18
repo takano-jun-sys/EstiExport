@@ -147,14 +147,28 @@ function addQuoteSheet(targetSpreadsheet, templateName, newSheetName) {
  */
 function fillQuoteData(sheet, jobData, details, templateName) {
   Logger.log('=== fillQuoteData 開始 ===');
-  Logger.log('テンプレート: ' + templateName);
+  Logger.log('テンプレート: "' + templateName + '"');
   Logger.log('明細数: ' + details.length);
+  Logger.log('CONFIG.TEMPLATE_SHEETS.UNDER_13 = "' + CONFIG.TEMPLATE_SHEETS.UNDER_13 + '"');
+  Logger.log('CONFIG.TEMPLATE_SHEETS.OVER_14 = "' + CONFIG.TEMPLATE_SHEETS.OVER_14 + '"');
 
-  const config = templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13
-    ? CONFIG.TEMPLATE_CELLS_13
-    : CONFIG.TEMPLATE_CELLS_14;
+  // テンプレート名で設定を選択
+  let config;
+  if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13 || templateName === '13未満') {
+    config = CONFIG.TEMPLATE_CELLS_13;
+    Logger.log('13未満テンプレートの設定を使用');
+  } else if (templateName === CONFIG.TEMPLATE_SHEETS.OVER_14 || templateName === '14以上') {
+    config = CONFIG.TEMPLATE_CELLS_14;
+    Logger.log('14以上テンプレートの設定を使用');
+  } else {
+    throw new Error('不明なテンプレート名: ' + templateName);
+  }
 
-  Logger.log('使用する設定: ' + JSON.stringify(config, null, 2));
+  if (!config) {
+    throw new Error('設定が見つかりません。テンプレート名: ' + templateName);
+  }
+
+  Logger.log('設定取得完了');
 
   // 固定情報を設定
   Logger.log('固定情報を設定開始');
@@ -178,7 +192,7 @@ function fillQuoteData(sheet, jobData, details, templateName) {
 
   // 明細を設定
   Logger.log('明細設定開始');
-  if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13) {
+  if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13 || templateName === '13未満') {
     // 13未満テンプレート
     fillDetails13(sheet, details, config);
   } else {
