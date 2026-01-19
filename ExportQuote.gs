@@ -136,21 +136,42 @@ function getOrCreateQuoteSpreadsheet(jobData) {
  * @return {Sheet} - 追加されたシート
  */
 function addQuoteSheet(targetSpreadsheet, templateName, newSheetName) {
-  const templateSS = getTemplateSpreadsheet();
-  const templateSheet = templateSS.getSheetByName(templateName);
+  const sheets = targetSpreadsheet.getSheets();
 
-  if (!templateSheet) {
-    throw new Error('テンプレートシートが見つかりません: ' + templateName);
+  // デフォルトシート以外の既存シートを取得
+  const existingSheets = sheets.filter(sheet => {
+    const name = sheet.getName();
+    return name !== 'シート1' && name !== 'Sheet1';
+  });
+
+  let copiedSheet;
+
+  if (existingSheets.length > 0) {
+    // 既存シートがある場合：最新のシート（配列の最後）をコピー
+    const latestSheet = existingSheets[existingSheets.length - 1];
+    Logger.log('既存シートをコピー: ' + latestSheet.getName());
+
+    copiedSheet = latestSheet.copyTo(targetSpreadsheet);
+    copiedSheet.setName(newSheetName);
+
+    // 古いデータをクリア
+    clearSheetData(copiedSheet, templateName);
+    Logger.log('シート追加（既存シートからコピー）: ' + newSheetName);
+  } else {
+    // 既存シートがない場合：テンプレートからコピー
+    const templateSS = getTemplateSpreadsheet();
+    const templateSheet = templateSS.getSheetByName(templateName);
+
+    if (!templateSheet) {
+      throw new Error('テンプレートシートが見つかりません: ' + templateName);
+    }
+
+    copiedSheet = templateSheet.copyTo(targetSpreadsheet);
+    copiedSheet.setName(newSheetName);
+    Logger.log('シート追加（テンプレートからコピー）: ' + newSheetName);
   }
 
-  // テンプレートをコピー
-  const copiedSheet = templateSheet.copyTo(targetSpreadsheet);
-  copiedSheet.setName(newSheetName);
-
-  Logger.log('シート追加: ' + newSheetName);
-
   // デフォルトシートを削除（最初のシート追加後）
-  const sheets = targetSpreadsheet.getSheets();
   sheets.forEach(sheet => {
     if (sheet.getName() === 'シート1' || sheet.getName() === 'Sheet1') {
       targetSpreadsheet.deleteSheet(sheet);
@@ -158,6 +179,75 @@ function addQuoteSheet(targetSpreadsheet, templateName, newSheetName) {
   });
 
   return copiedSheet;
+}
+
+/**
+ * シートの古いデータをクリア
+ * @param {Sheet} sheet - 対象シート
+ * @param {string} templateName - テンプレート名
+ */
+function clearSheetData(sheet, templateName) {
+  Logger.log('古いデータをクリア開始: ' + templateName);
+
+  // テンプレート名で設定を選択
+  let config;
+  if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13 || templateName === '13未満') {
+    config = CONFIG.TEMPLATE_CELLS_13;
+  } else if (templateName === CONFIG.TEMPLATE_SHEETS.BETWEEN_14_20 || templateName === '14-20') {
+    config = CONFIG.TEMPLATE_CELLS_14_20;
+  } else if (templateName === CONFIG.TEMPLATE_SHEETS.OVER_20 || templateName === '20以上') {
+    config = CONFIG.TEMPLATE_CELLS_20_OVER;
+  } else {
+    throw new Error('不明なテンプレート名: ' + templateName);
+  }
+
+  // 固定情報をクリア
+  sheet.getRange(config.クライアント名).clearContent();
+  sheet.getRange(config.品名).clearContent();
+  sheet.getRange(config.仕様1).clearContent();
+  sheet.getRange(config.仕様2).clearContent();
+  sheet.getRange(config.仕様3).clearContent();
+  sheet.getRange(config.仕様4).clearContent();
+  sheet.getRange(config.担当).clearContent();
+  sheet.getRange(config.PROJECT_JOB_ID).clearContent();
+  sheet.getRange(config.生成日時).clearContent();
+  sheet.getRange(config.端数調整).clearContent();
+
+  // 明細データをクリア
+  if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13 || templateName === '13未満') {
+    // 13未満: 18-30行
+    clearDetailRows(sheet, config.明細開始行, config.明細終了行, config.列);
+  } else if (templateName === CONFIG.TEMPLATE_SHEETS.BETWEEN_14_20 || templateName === '14-20') {
+    // 14-20: 18-37行
+    clearDetailRows(sheet, config.明細開始行, config.明細終了行, config.列);
+  } else {
+    // 20以上: ページ1（18-37行）+ ページ2（39-62行）
+    clearDetailRows(sheet, config.ページ1.明細開始行, config.ページ1.明細終了行, config.列);
+    clearDetailRows(sheet, config.ページ2.明細開始行, config.ページ2.明細終了行, config.列);
+  }
+
+  Logger.log('古いデータをクリア完了');
+}
+
+/**
+ * 明細行の範囲をクリア
+ * @param {Sheet} sheet - 対象シート
+ * @param {number} startRow - 開始行
+ * @param {number} endRow - 終了行
+ * @param {Object} columns - 列設定
+ */
+function clearDetailRows(sheet, startRow, endRow, columns) {
+  for (let row = startRow; row <= endRow; row++) {
+    sheet.getRange(row, 1).clearContent(); // A列: 行番号
+    sheet.getRange(columns.作業項目 + row).clearContent();
+    sheet.getRange(columns.作業詳細 + row).clearContent();
+    sheet.getRange(columns.単価 + row).clearContent();
+    sheet.getRange(columns.数量 + row).clearContent();
+    sheet.getRange(columns.単位 + row).clearContent();
+    // 金額は結合セル（G:H）の先頭をクリア
+    const amountCell = columns.金額.split(':')[0] + row;
+    sheet.getRange(amountCell).clearContent();
+  }
 }
 
 /**
