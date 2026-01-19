@@ -334,6 +334,9 @@ function fillDetails13(sheet, details, config) {
     rowOffset++;  // 通常明細の場合のみ行を進める
   });
 
+  // 同じ作業項目のセルを結合
+  mergeWorkItemCells(sheet, details, startRow, config.列.作業項目);
+
   Logger.log('fillDetails13: 完了');
 }
 
@@ -377,6 +380,9 @@ function fillDetails14_20(sheet, details, config) {
     rowOffset++;  // 通常明細の場合のみ行を進める
   });
 
+  // 同じ作業項目のセルを結合
+  mergeWorkItemCells(sheet, details, startRow, config.列.作業項目);
+
   Logger.log('fillDetails14_20: 完了');
 }
 
@@ -411,6 +417,7 @@ function fillDetails20Over(sheet, details, config) {
   const page1Start = config.ページ1.明細開始行;
   const page1End = config.ページ1.明細終了行;
   const page1Count = page1End - page1Start + 1;
+  const page1Details = [];
 
   for (let i = 0; i < page1Count && detailIndex < normalDetails.length; i++) {
     const detail = normalDetails[detailIndex];
@@ -426,13 +433,18 @@ function fillDetails20Over(sheet, details, config) {
     const amountCell = config.列.金額.split(':')[0] + row;
     sheet.getRange(amountCell).setValue(detail.金額);
 
+    page1Details.push(detail);
     detailIndex++;
   }
+
+  // ページ1の作業項目を結合
+  mergeWorkItemCells(sheet, page1Details, page1Start, config.列.作業項目);
 
   // ページ2（39-62行、24件）
   const page2Start = config.ページ2.明細開始行;
   const page2End = config.ページ2.明細終了行;
   const page2Count = page2End - page2Start + 1;
+  const page2Details = [];
 
   for (let i = 0; i < page2Count && detailIndex < normalDetails.length; i++) {
     const detail = normalDetails[detailIndex];
@@ -448,10 +460,63 @@ function fillDetails20Over(sheet, details, config) {
     const amountCell = config.列.金額.split(':')[0] + row;
     sheet.getRange(amountCell).setValue(detail.金額);
 
+    page2Details.push(detail);
     detailIndex++;
   }
 
+  // ページ2の作業項目を結合
+  mergeWorkItemCells(sheet, page2Details, page2Start, config.列.作業項目);
+
   Logger.log('fillDetails20Over: 完了');
+}
+
+/**
+ * 同じ作業項目のセルを結合して上揃えにする
+ * @param {Sheet} sheet - 対象シート
+ * @param {Array} details - Details配列（端数調整を除く）
+ * @param {number} startRow - 開始行
+ * @param {string} columnLetter - 作業項目の列（例: 'B'）
+ */
+function mergeWorkItemCells(sheet, details, startRow, columnLetter) {
+  if (details.length === 0) return;
+
+  Logger.log('=== 作業項目セル結合開始 ===');
+
+  let mergeStart = startRow;
+  let currentItem = details[0].作業項目;
+  let mergeCount = 1;
+
+  for (let i = 1; i < details.length; i++) {
+    const detail = details[i];
+
+    if (detail.作業項目 === currentItem) {
+      // 同じ作業項目なら結合範囲を拡大
+      mergeCount++;
+    } else {
+      // 作業項目が変わったら、前の範囲を結合
+      if (mergeCount > 1) {
+        const range = sheet.getRange(`${columnLetter}${mergeStart}:${columnLetter}${mergeStart + mergeCount - 1}`);
+        range.mergeVertically();
+        range.setVerticalAlignment('top');
+        Logger.log(`  ${currentItem}: ${columnLetter}${mergeStart}:${columnLetter}${mergeStart + mergeCount - 1} を結合`);
+      }
+
+      // 新しい作業項目の範囲を開始
+      mergeStart = startRow + i;
+      currentItem = detail.作業項目;
+      mergeCount = 1;
+    }
+  }
+
+  // 最後の範囲を結合
+  if (mergeCount > 1) {
+    const range = sheet.getRange(`${columnLetter}${mergeStart}:${columnLetter}${mergeStart + mergeCount - 1}`);
+    range.mergeVertically();
+    range.setVerticalAlignment('top');
+    Logger.log(`  ${currentItem}: ${columnLetter}${mergeStart}:${columnLetter}${mergeStart + mergeCount - 1} を結合`);
+  }
+
+  Logger.log('=== 作業項目セル結合完了 ===');
 }
 
 /**
