@@ -20,15 +20,19 @@ function generateQuote(jobId, formData) {
 
     // 2. 更新後のJobデータとDetailsを取得
     const jobData = getJobData(jobId);
-    const details = getDetails(jobId);
+    let details = getDetails(jobId);
 
     if (details.length === 0) {
       throw new Error('明細が見つかりません');
     }
 
-    Logger.log('明細数: ' + details.length);
+    Logger.log('明細数（取得時）: ' + details.length);
 
-    // 3. テンプレートを選択（13未満 / 14-20 / 20以上）
+    // 3. 作業項目でソートして行番号を振り直す
+    details = sortAndReorderDetails(details);
+    Logger.log('明細数（ソート後）: ' + details.length);
+
+    // 4. テンプレートを選択（13未満 / 14-20 / 20以上）
     let templateName;
     if (details.length <= 13) {
       templateName = CONFIG.TEMPLATE_SHEETS.UNDER_13;
@@ -40,30 +44,30 @@ function generateQuote(jobId, formData) {
 
     Logger.log('使用テンプレート: ' + templateName);
 
-    // 4. スプレッドシートを作成または取得
+    // 5. スプレッドシートを作成または取得
     const spreadsheet = getOrCreateQuoteSpreadsheet(jobData);
 
-    // 5. 新しいシートを追加（発行日時が名前）
+    // 6. 新しいシートを追加（発行日時が名前）
     const now = new Date();
     const sheetName = Utilities.formatDate(now, CONFIG.TIMEZONE, 'yyyy-MM-dd HH:mm:ss');
     const newSheet = addQuoteSheet(spreadsheet, templateName, sheetName);
 
-    // 6. データを埋め込み
+    // 7. データを埋め込み
     fillQuoteData(newSheet, jobData, details, templateName, now);
 
-    // 6.5. スプレッドシートへの書き込みを確実に反映させる
+    // 8. スプレッドシートへの書き込みを確実に反映させる
     Logger.log('スプレッドシートへの書き込みを反映中...');
     SpreadsheetApp.flush();
     Logger.log('スプレッドシートへの書き込み完了');
 
-    // 7. PDFを生成（ページ番号付き）
+    // 9. PDFを生成（ページ番号付き）
     const pdfFile = exportSheetToPDF(spreadsheet, newSheet, jobData, now);
 
-    // 8. 生成したシートを直接開くURLを作成
+    // 10. 生成したシートを直接開くURLを作成
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheet.getId()}/edit#gid=${newSheet.getSheetId()}`;
     Logger.log('シートURL: ' + sheetUrl);
 
-    // 9. JobsテーブルにURLを保存
+    // 11. JobsテーブルにURLを保存
     saveQuoteUrls(jobData.rowIndex, sheetUrl, pdfFile.getUrl(), now);
 
     Logger.log('見積書生成完了');
@@ -82,6 +86,56 @@ function generateQuote(jobId, formData) {
       error: error.message
     };
   }
+}
+
+/**
+ * 明細を作業項目でソートして行番号を振り直す
+ * @param {Array} details - Details配列
+ * @return {Array} - ソート済みDetails配列
+ */
+function sortAndReorderDetails(details) {
+  Logger.log('=== 明細ソート開始 ===');
+
+  // 端数調整とそれ以外を分離
+  const normalDetails = [];
+  let hasukasuchousei = null;
+
+  details.forEach((detail) => {
+    if (detail.作業項目 === '端数調整') {
+      hasukasuchousei = detail;
+      Logger.log('端数調整を検出: ' + JSON.stringify(detail));
+    } else {
+      normalDetails.push(detail);
+    }
+  });
+
+  // 通常明細を作業項目でソート
+  normalDetails.sort((a, b) => {
+    const itemA = a.作業項目 || '';
+    const itemB = b.作業項目 || '';
+    return itemA.localeCompare(itemB, 'ja');
+  });
+
+  Logger.log('ソート後の作業項目順:');
+  normalDetails.forEach((detail, index) => {
+    Logger.log(`  ${index + 1}: ${detail.作業項目}`);
+  });
+
+  // 行番号を1から振り直す
+  normalDetails.forEach((detail, index) => {
+    detail.行番号 = index + 1;
+  });
+
+  // 端数調整を最後に追加
+  const result = [...normalDetails];
+  if (hasukasuchousei) {
+    hasukasuchousei.行番号 = result.length + 1;
+    result.push(hasukasuchousei);
+    Logger.log('端数調整を最後に追加（行番号: ' + hasukasuchousei.行番号 + '）');
+  }
+
+  Logger.log('=== 明細ソート完了（全' + result.length + '件）===');
+  return result;
 }
 
 /**
