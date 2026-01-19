@@ -7,34 +7,16 @@
  * GETリクエストハンドラー
  * AppSheetから Job.ID をパラメータで受け取る
  *
- * URL例:
- * - 見積書生成: https://script.google.com/macros/s/.../exec?jobId=001
- * - 金額再計算: https://script.google.com/macros/s/.../exec?action=recalculate&jobId=001
+ * URL例: https://script.google.com/macros/s/.../exec?jobId=001
  */
 function doGet(e) {
   try {
     const jobId = e.parameter.jobId;
-    const action = e.parameter.action;
 
     if (!jobId) {
       return HtmlService.createHtmlOutput('エラー: Job IDが指定されていません');
     }
 
-    // 金額再計算アクション
-    if (action === 'recalculate') {
-      const result = recalculateAmounts(jobId);
-      if (result.success) {
-        return HtmlService.createHtmlOutput(
-          `<h2>✓ 完了</h2><p>${result.message}</p><p><a href="javascript:google.script.host.close()">閉じる</a></p>`
-        );
-      } else {
-        return HtmlService.createHtmlOutput(
-          `<h2>✗ エラー</h2><p>${result.error}</p><p><a href="javascript:google.script.host.close()">閉じる</a></p>`
-        );
-      }
-    }
-
-    // 見積書生成（デフォルト）
     Logger.log('見積書Export開始: Job ID = ' + jobId);
 
     // Jobデータを取得
@@ -192,73 +174,5 @@ function updateJobData(jobId, formData) {
   } catch (error) {
     Logger.log('updateJobDataエラー: ' + error.message);
     return { success: false, error: error.message };
-  }
-}
-
-/**
- * 単価を再計算（AppSheetから呼び出される）
- * @param {string} jobId - Job ID
- * @return {Object} - 結果
- */
-function recalculateAmounts(jobId) {
-  try {
-    Logger.log('単価再計算開始: Job ID = ' + jobId);
-
-    const ss = getAppSheetSpreadsheet();
-    const detailsSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.DETAILS);
-    const data = detailsSheet.getDataRange().getValues();
-
-    let updatedCount = 0;
-
-    // ヘッダー行を除いて検索
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const currentJobId = row[CONFIG.DETAILS_COLUMNS.JOB_ID - 1];
-
-      // 型を揃えて比較
-      if (String(currentJobId) === String(jobId)) {
-        const 内製外注 = row[CONFIG.DETAILS_COLUMNS.内製外注 - 1] || '';
-        const 制作単価 = row[CONFIG.DETAILS_COLUMNS.制作単価 - 1] || 0;
-        const 仕入れ金額 = row[CONFIG.DETAILS_COLUMNS.仕入れ金額 - 1] || 0;
-        const かけ率 = row[CONFIG.DETAILS_COLUMNS.かけ率 - 1] || 0;
-        const 数量 = row[CONFIG.DETAILS_COLUMNS.数量 - 1] || 0;
-        const 現在の単価 = row[CONFIG.DETAILS_COLUMNS.単価 - 1];
-
-        // 単価を計算
-        let 計算後単価;
-        if (内製外注 === '制作費') {
-          計算後単価 = 制作単価;
-        } else {
-          // 数量が0の場合は0除算を避ける
-          if (数量 === 0) {
-            計算後単価 = 0;
-          } else {
-            計算後単価 = (仕入れ金額 * かけ率) / 数量;
-          }
-        }
-
-        // 単価が異なる場合のみ更新
-        if (現在の単価 !== 計算後単価) {
-          detailsSheet.getRange(i + 1, CONFIG.DETAILS_COLUMNS.単価).setValue(計算後単価);
-          Logger.log(`行${i + 1}: 単価を更新 ${現在の単価} → ${計算後単価}`);
-          updatedCount++;
-        }
-      }
-    }
-
-    Logger.log(`単価再計算完了: ${updatedCount}件を更新`);
-
-    return {
-      success: true,
-      message: `${updatedCount}件の明細の単価を再計算しました（金額は自動的に更新されます）`,
-      updatedCount: updatedCount
-    };
-
-  } catch (error) {
-    Logger.log('recalculateAmountsエラー: ' + error.message);
-    return {
-      success: false,
-      error: error.message
-    };
   }
 }
