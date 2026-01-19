@@ -170,7 +170,16 @@ const CONFIG = {
   },
 
   // 保存先フォルダID
-  QUOTE_FOLDER_ID: '15O79II-3SKSD1UsG033lakI2ypnlq0Ym'
+  QUOTE_FOLDER_ID: '15O79II-3SKSD1UsG033lakI2ypnlq0Ym',
+
+  // ステータス設定
+  STATUS: {
+    初回生成時: '見積中1',
+    見積中1: '見積中2',
+    見積中2: '見積中3',
+    見積中3: '見積中4',
+    見積中4: '見積中4'  // 見積中4が最大
+  }
 };
 
 /**

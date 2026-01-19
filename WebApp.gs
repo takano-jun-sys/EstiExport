@@ -29,10 +29,15 @@ function doGet(e) {
     // 初回かどうかを判定
     const isFirstTime = !jobData.見積書スプレッドシートURL;
 
+    // 次のステータスを計算
+    const currentStatus = jobData.ステータス || '';
+    const nextStatus = CONFIG.STATUS[currentStatus] || currentStatus;
+
     // 入力ダイアログHTMLを生成
     const template = HtmlService.createTemplateFromFile('DialogHTML');
     template.jobData = jobData;
     template.isFirstTime = isFirstTime;
+    template.nextStatus = nextStatus;
 
     return template.evaluate()
       .setTitle('見積書 Export - ' + jobId)
@@ -74,6 +79,7 @@ function getJobData(jobId) {
         projectId: row[CONFIG.JOBS_COLUMNS.PROJECT_ID - 1],
         jobId: jobId,
         案件名: row[CONFIG.JOBS_COLUMNS.案件名 - 1],
+        ステータス: row[CONFIG.JOBS_COLUMNS.ステータス - 1] || '',
         クライアント名: row[CONFIG.JOBS_COLUMNS.クライアント名 - 1] || '',
         品名: row[CONFIG.JOBS_COLUMNS.品名 - 1] || '',
         仕様1: row[CONFIG.JOBS_COLUMNS.仕様1 - 1] || '',

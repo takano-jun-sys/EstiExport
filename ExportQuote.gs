@@ -67,8 +67,26 @@ function generateQuote(jobId, formData) {
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheet.getId()}/edit#gid=${newSheet.getSheetId()}`;
     Logger.log('シートURL: ' + sheetUrl);
 
-    // 11. JobsテーブルにURLを保存
-    saveQuoteUrls(jobData.rowIndex, sheetUrl, pdfFile.getUrl(), now);
+    // 11. ステータスを更新
+    const isFirstTime = !jobData.見積書スプレッドシートURL;
+    const shouldUpdateStatus = isFirstTime || formData.ステータス更新;
+
+    let newStatus = null;
+    if (shouldUpdateStatus) {
+      if (isFirstTime) {
+        // 初回生成時：自動で「見積中1」に更新
+        newStatus = CONFIG.STATUS.初回生成時;
+        Logger.log('初回生成：ステータスを「' + newStatus + '」に更新');
+      } else if (formData.ステータス更新) {
+        // 2回目以降でチェックON：次のステータスに進める
+        const currentStatus = jobData.ステータス || '';
+        newStatus = CONFIG.STATUS[currentStatus] || currentStatus;
+        Logger.log('ステータスを更新：' + currentStatus + ' → ' + newStatus);
+      }
+    }
+
+    // 12. JobsテーブルにURLとステータスを保存
+    saveQuoteUrls(jobData.rowIndex, sheetUrl, pdfFile.getUrl(), now, newStatus);
 
     Logger.log('見積書生成完了');
 
@@ -590,14 +608,25 @@ function generatePDFBlob(spreadsheet, sheet, generatedDate) {
 
 /**
  * 見積URLをJobsテーブルに保存
+ * @param {number} rowIndex - 行番号
+ * @param {string} spreadsheetUrl - スプレッドシートURL
+ * @param {string} pdfUrl - PDF URL
+ * @param {Date} timestamp - タイムスタンプ
+ * @param {string|null} newStatus - 新しいステータス（nullの場合は更新しない）
  */
-function saveQuoteUrls(rowIndex, spreadsheetUrl, pdfUrl, timestamp) {
+function saveQuoteUrls(rowIndex, spreadsheetUrl, pdfUrl, timestamp, newStatus) {
   const ss = getAppSheetSpreadsheet();
   const jobsSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.JOBS);
 
   jobsSheet.getRange(rowIndex, CONFIG.JOBS_COLUMNS.見積書スプレッドシートURL).setValue(spreadsheetUrl);
   jobsSheet.getRange(rowIndex, CONFIG.JOBS_COLUMNS.見積書PDF_URL).setValue(pdfUrl);
   jobsSheet.getRange(rowIndex, CONFIG.JOBS_COLUMNS.最終発行日時).setValue(timestamp);
+
+  // ステータスを更新
+  if (newStatus) {
+    jobsSheet.getRange(rowIndex, CONFIG.JOBS_COLUMNS.ステータス).setValue(newStatus);
+    Logger.log('ステータスを「' + newStatus + '」に更新しました');
+  }
 
   Logger.log('URLを保存しました');
 }

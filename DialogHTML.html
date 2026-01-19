@@ -265,6 +265,15 @@
         <input type="text" id="staff" name="staff" value="<?= jobData.担当 ?>" required>
       </div>
 
+      <?  if (!isFirstTime) { ?>
+      <div class="form-group">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="updateStatus" name="updateStatus" style="width: auto; margin-right: 8px;">
+          <span>ステータスを次に進める（<?= jobData.ステータス ?> → <?= nextStatus ?>）</span>
+        </label>
+      </div>
+      <? } ?>
+
       <div class="button-group">
         <button type="submit">見積書を生成</button>
       </div>
@@ -292,7 +301,8 @@
         仕様2: document.getElementById('spec2').value,
         仕様3: document.getElementById('spec3').value,
         仕様4: document.getElementById('spec4').value,
-        担当: document.getElementById('staff').value
+        担当: document.getElementById('staff').value,
+        ステータス更新: document.getElementById('updateStatus') ? document.getElementById('updateStatus').checked : false
       };
 
       // ローディング表示
