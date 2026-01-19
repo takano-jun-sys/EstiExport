@@ -196,13 +196,13 @@ function updateJobData(jobId, formData) {
 }
 
 /**
- * 金額を再計算（AppSheetから呼び出される）
+ * 単価を再計算（AppSheetから呼び出される）
  * @param {string} jobId - Job ID
  * @return {Object} - 結果
  */
 function recalculateAmounts(jobId) {
   try {
-    Logger.log('金額再計算開始: Job ID = ' + jobId);
+    Logger.log('単価再計算開始: Job ID = ' + jobId);
 
     const ss = getAppSheetSpreadsheet();
     const detailsSheet = ss.getSheetByName(CONFIG.SHEET_NAMES.DETAILS);
@@ -217,29 +217,40 @@ function recalculateAmounts(jobId) {
 
       // 型を揃えて比較
       if (String(currentJobId) === String(jobId)) {
+        const 内製外注 = row[CONFIG.DETAILS_COLUMNS.内製外注 - 1] || '';
+        const 制作単価 = row[CONFIG.DETAILS_COLUMNS.制作単価 - 1] || 0;
+        const 仕入れ金額 = row[CONFIG.DETAILS_COLUMNS.仕入れ金額 - 1] || 0;
+        const かけ率 = row[CONFIG.DETAILS_COLUMNS.かけ率 - 1] || 0;
         const 数量 = row[CONFIG.DETAILS_COLUMNS.数量 - 1] || 0;
-        const 単価 = row[CONFIG.DETAILS_COLUMNS.単価 - 1] || 0;
-        const 計算後金額 = 数量 * 単価;
+        const 現在の単価 = row[CONFIG.DETAILS_COLUMNS.単価 - 1];
 
-        // 金額列が存在する場合のみ更新（仮想列の場合は列がない）
-        if (CONFIG.DETAILS_COLUMNS.金額) {
-          const 現在の金額 = row[CONFIG.DETAILS_COLUMNS.金額 - 1];
-
-          // 金額が異なる場合のみ更新
-          if (現在の金額 !== 計算後金額) {
-            detailsSheet.getRange(i + 1, CONFIG.DETAILS_COLUMNS.金額).setValue(計算後金額);
-            Logger.log(`行${i + 1}: 金額を更新 ${現在の金額} → ${計算後金額}`);
-            updatedCount++;
+        // 単価を計算
+        let 計算後単価;
+        if (内製外注 === '制作費') {
+          計算後単価 = 制作単価;
+        } else {
+          // 数量が0の場合は0除算を避ける
+          if (数量 === 0) {
+            計算後単価 = 0;
+          } else {
+            計算後単価 = (仕入れ金額 * かけ率) / 数量;
           }
+        }
+
+        // 単価が異なる場合のみ更新
+        if (現在の単価 !== 計算後単価) {
+          detailsSheet.getRange(i + 1, CONFIG.DETAILS_COLUMNS.単価).setValue(計算後単価);
+          Logger.log(`行${i + 1}: 単価を更新 ${現在の単価} → ${計算後単価}`);
+          updatedCount++;
         }
       }
     }
 
-    Logger.log(`金額再計算完了: ${updatedCount}件を更新`);
+    Logger.log(`単価再計算完了: ${updatedCount}件を更新`);
 
     return {
       success: true,
-      message: `${updatedCount}件の明細の金額を再計算しました`,
+      message: `${updatedCount}件の明細の単価を再計算しました（金額は自動的に更新されます）`,
       updatedCount: updatedCount
     };
 
