@@ -201,17 +201,17 @@ function clearSheetData(sheet, templateName) {
     throw new Error('不明なテンプレート名: ' + templateName);
   }
 
-  // 固定情報をクリア
-  sheet.getRange(config.クライアント名).clearContent();
-  sheet.getRange(config.品名).clearContent();
-  sheet.getRange(config.仕様1).clearContent();
-  sheet.getRange(config.仕様2).clearContent();
-  sheet.getRange(config.仕様3).clearContent();
-  sheet.getRange(config.仕様4).clearContent();
-  sheet.getRange(config.担当).clearContent();
-  sheet.getRange(config.PROJECT_JOB_ID).clearContent();
-  sheet.getRange(config.生成日時).clearContent();
-  sheet.getRange(config.端数調整).clearContent();
+  // 固定情報をクリア（書式を保持するためsetValue('')を使用）
+  sheet.getRange(config.クライアント名).setValue('');
+  sheet.getRange(config.品名).setValue('');
+  sheet.getRange(config.仕様1).setValue('');
+  sheet.getRange(config.仕様2).setValue('');
+  sheet.getRange(config.仕様3).setValue('');
+  sheet.getRange(config.仕様4).setValue('');
+  sheet.getRange(config.担当).setValue('');
+  sheet.getRange(config.PROJECT_JOB_ID).setValue('');
+  sheet.getRange(config.生成日時).setValue('');
+  sheet.getRange(config.端数調整).setValue('');
 
   // 明細データをクリア
   if (templateName === CONFIG.TEMPLATE_SHEETS.UNDER_13 || templateName === '13未満') {
@@ -238,15 +238,15 @@ function clearSheetData(sheet, templateName) {
  */
 function clearDetailRows(sheet, startRow, endRow, columns) {
   for (let row = startRow; row <= endRow; row++) {
-    sheet.getRange(row, 1).clearContent(); // A列: 行番号
-    sheet.getRange(columns.作業項目 + row).clearContent();
-    sheet.getRange(columns.作業詳細 + row).clearContent();
-    sheet.getRange(columns.単価 + row).clearContent();
-    sheet.getRange(columns.数量 + row).clearContent();
-    sheet.getRange(columns.単位 + row).clearContent();
+    sheet.getRange(row, 1).setValue(''); // A列: 行番号
+    sheet.getRange(columns.作業項目 + row).setValue('');
+    sheet.getRange(columns.作業詳細 + row).setValue('');
+    sheet.getRange(columns.単価 + row).setValue('');
+    sheet.getRange(columns.数量 + row).setValue('');
+    sheet.getRange(columns.単位 + row).setValue('');
     // 金額は結合セル（G:H）の先頭をクリア
     const amountCell = columns.金額.split(':')[0] + row;
-    sheet.getRange(amountCell).clearContent();
+    sheet.getRange(amountCell).setValue('');
   }
 }
 
