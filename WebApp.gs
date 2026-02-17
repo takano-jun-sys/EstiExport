@@ -1,6 +1,7 @@
 /**
  * Web Appエントリーポイント
  * AppSheetから呼び出される
+ * Updated: 2026-02-17 - Add detail selection support
  */
 
 /**
