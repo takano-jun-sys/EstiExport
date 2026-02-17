@@ -28,6 +28,19 @@ function generateQuote(jobId, formData) {
 
     Logger.log('明細数（取得時）: ' + details.length);
 
+    // 2.5. 「見積に含める」がYesの明細のみをフィルタリング
+    const totalDetails = details.length;
+    details = details.filter(detail => {
+      const includeInQuote = detail.見積に含める;
+      // "Yes"、"YES"、"yes"、true、または空の場合は含める
+      return includeInQuote === 'Yes' || includeInQuote === 'YES' || includeInQuote === 'yes' || includeInQuote === true || includeInQuote === '';
+    });
+    Logger.log('明細数（フィルタリング後）: ' + details.length + ' / ' + totalDetails);
+
+    if (details.length === 0) {
+      throw new Error('見積に含める明細がありません');
+    }
+
     // 3. 作業項目でソートして行番号を振り直す
     details = sortAndReorderDetails(details);
     Logger.log('明細数（ソート後）: ' + details.length);

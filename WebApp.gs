@@ -118,6 +118,7 @@ function getDetails(jobId) {
     if (String(currentJobId) === String(jobId)) {
       const 数量 = row[CONFIG.DETAILS_COLUMNS.数量 - 1] || 0;
       const 単価 = row[CONFIG.DETAILS_COLUMNS.単価 - 1] || 0;
+      const 見積に含める = row[CONFIG.DETAILS_COLUMNS.見積に含める - 1] || 'Yes';  // デフォルトYes
 
       details.push({
         明細ID: row[CONFIG.DETAILS_COLUMNS.明細ID - 1],
@@ -130,7 +131,8 @@ function getDetails(jobId) {
         単位: row[CONFIG.DETAILS_COLUMNS.単位 - 1] || '',
         単価: 単価,
         作業詳細: row[CONFIG.DETAILS_COLUMNS.作業詳細 - 1] || '',
-        金額: 数量 * 単価  // 金額を計算
+        金額: 数量 * 単価,  // 金額を計算
+        見積に含める: 見積に含める
       });
     }
   }
