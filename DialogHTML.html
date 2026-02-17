@@ -210,6 +210,92 @@
       color: #b0b0b0;
       font-size: 15px;
     }
+
+    .details-section {
+      background: #2a2a2a;
+      border: 1.5px solid #404040;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .details-section h3 {
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .details-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .details-controls button {
+      padding: 4px 12px;
+      font-size: 12px;
+      background: #404040;
+      color: #e0e0e0;
+    }
+
+    .details-controls button:hover {
+      background: #505050;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .detail-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #1a1a1a;
+      border-radius: 6px;
+      border: 1px solid #303030;
+      transition: all 0.2s;
+    }
+
+    .detail-item:hover {
+      background: #222222;
+      border-color: #404040;
+    }
+
+    .detail-item input[type="checkbox"] {
+      margin: 2px 12px 0 0;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .detail-content {
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .detail-content .item-name {
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+
+    .detail-content .item-detail {
+      color: #b0b0b0;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .detail-content .item-amount {
+      color: #4A86E8;
+      font-weight: 600;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -227,6 +313,43 @@
           <span class="badge first">初回Export - 情報を入力してください</span>
         <? } ?>
       </div>
+    </div>
+
+    <div class="details-section">
+      <h3>
+        <span>見積に含める明細を選択</span>
+        <div class="details-controls">
+          <button type="button" onclick="selectAllDetails()">全選択</button>
+          <button type="button" onclick="deselectAllDetails()">全解除</button>
+        </div>
+      </h3>
+      <? if (details && details.length > 0) { ?>
+        <? details.forEach(function(detail, index) { ?>
+          <div class="detail-item">
+            <input
+              type="checkbox"
+              id="detail_<?= detail.明細ID ?>"
+              name="detail_<?= detail.明細ID ?>"
+              value="<?= detail.明細ID ?>"
+              <?= (detail.見積に含める === 'Yes' || detail.見積に含める === 'YES' || detail.見積に含める === 'yes' || detail.見積に含める === true || detail.見積に含める === '') ? 'checked' : '' ?>
+            >
+            <label for="detail_<?= detail.明細ID ?>" class="detail-content" style="cursor: pointer; margin: 0;">
+              <div class="item-name"><?= detail.作業項目 || '(作業項目なし)' ?></div>
+              <? if (detail.作業詳細) { ?>
+                <div class="item-detail"><?= detail.作業詳細 ?></div>
+              <? } ?>
+              <div class="item-amount">
+                ¥<?= detail.金額.toLocaleString() ?>
+                <span style="color: #808080; font-weight: normal; font-size: 12px;">
+                  (<?= detail.数量 ?><?= detail.単位 ?> × ¥<?= detail.単価.toLocaleString() ?>)
+                </span>
+              </div>
+            </label>
+          </div>
+        <? }); ?>
+      <? } else { ?>
+        <p style="color: #808080; text-align: center; padding: 20px;">明細がありません</p>
+      <? } ?>
     </div>
 
     <form id="quoteForm">
@@ -290,8 +413,30 @@
   <script>
     const jobId = '<?= jobData.jobId ?>';
 
+    // 全選択
+    function selectAllDetails() {
+      document.querySelectorAll('.detail-item input[type="checkbox"]').forEach(cb => cb.checked = true);
+    }
+
+    // 全解除
+    function deselectAllDetails() {
+      document.querySelectorAll('.detail-item input[type="checkbox"]').forEach(cb => cb.checked = false);
+    }
+
     document.getElementById('quoteForm').addEventListener('submit', function(e) {
       e.preventDefault();
+
+      // 選択された明細IDを収集
+      const selectedDetailIds = [];
+      document.querySelectorAll('.detail-item input[type="checkbox"]:checked').forEach(cb => {
+        selectedDetailIds.push(cb.value);
+      });
+
+      // 明細が1つも選択されていない場合はエラー
+      if (selectedDetailIds.length === 0) {
+        showError('見積に含める明細を少なくとも1つ選択してください');
+        return;
+      }
 
       // フォームデータを取得
       const formData = {
@@ -302,7 +447,8 @@
         仕様3: document.getElementById('spec3').value,
         仕様4: document.getElementById('spec4').value,
         担当: document.getElementById('staff').value,
-        ステータス更新: document.getElementById('updateStatus') ? document.getElementById('updateStatus').checked : false
+        ステータス更新: document.getElementById('updateStatus') ? document.getElementById('updateStatus').checked : false,
+        選択された明細ID: selectedDetailIds
       };
 
       // ローディング表示

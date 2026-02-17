@@ -28,17 +28,22 @@ function generateQuote(jobId, formData) {
 
     Logger.log('明細数（取得時）: ' + details.length);
 
-    // 2.5. 「見積に含める」がYesの明細のみをフィルタリング
+    // 2.5. 選択された明細IDでフィルタリング
+    const selectedDetailIds = formData.選択された明細ID || [];
     const totalDetails = details.length;
+
+    if (selectedDetailIds.length === 0) {
+      throw new Error('見積に含める明細が選択されていません');
+    }
+
     details = details.filter(detail => {
-      const includeInQuote = detail.見積に含める;
-      // "Yes"、"YES"、"yes"、true、または空の場合は含める
-      return includeInQuote === 'Yes' || includeInQuote === 'YES' || includeInQuote === 'yes' || includeInQuote === true || includeInQuote === '';
+      return selectedDetailIds.includes(String(detail.明細ID));
     });
     Logger.log('明細数（フィルタリング後）: ' + details.length + ' / ' + totalDetails);
+    Logger.log('選択された明細ID: ' + selectedDetailIds.join(', '));
 
     if (details.length === 0) {
-      throw new Error('見積に含める明細がありません');
+      throw new Error('選択された明細が見つかりません');
     }
 
     // 3. 作業項目でソートして行番号を振り直す

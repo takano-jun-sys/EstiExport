@@ -33,11 +33,15 @@ function doGet(e) {
     const currentStatus = jobData.ステータス || '';
     const nextStatus = CONFIG.STATUS[currentStatus] || currentStatus;
 
+    // Detailsを取得
+    const details = getDetails(jobId);
+
     // 入力ダイアログHTMLを生成
     const template = HtmlService.createTemplateFromFile('DialogHTML');
     template.jobData = jobData;
     template.isFirstTime = isFirstTime;
     template.nextStatus = nextStatus;
+    template.details = details;
 
     return template.evaluate()
       .setTitle('見積書 Export - ' + jobId)
